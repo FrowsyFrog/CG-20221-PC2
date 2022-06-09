@@ -128,7 +128,6 @@ async function main() {
 
   const maxX = 10;
   const maxZ = 10;
-  // acerca, altura, 
   const mugPosition = v3.fromValues(24, -8, 20);
   const positions = new Array(maxX * maxZ);
 	const rndb = (a, b) => Math.random() * (b - a) + a;
@@ -142,14 +141,11 @@ async function main() {
   gl.enable(gl.DEPTH_TEST);
   gl.enable(gl.CULL_FACE);
 
-  // Render awesome
   function render(elapsedTime) {
-    // handling time in seconds maybe
     elapsedTime *= 1e-3;
     deltaTime = elapsedTime - lastTime;
     lastTime = elapsedTime;
 
-    // resizing stuff and general preparation
     if (twgl.resizeCanvasToDisplaySize(gl.canvas)) {
       gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
       aspect = gl.canvas.width / gl.canvas.height;
@@ -159,12 +155,10 @@ async function main() {
 
     if (autorotate) theta += deltaTime;
 
-    // lamp light
     m4.identity(world);
     m4.translate(world, world, initial_light_pos);
     v3.transformMat4(light_position, origin, world);
 
-    // coordinate system adjustments
     m4.identity(projection);
     m4.perspective(projection, cam.zoom, aspect, 0.1, 100);
 
@@ -196,12 +190,10 @@ async function main() {
       }
 		}
 
-    // logic to move the visual representation of the light source
     m4.identity(world);
     m4.translate(world, world, light_position);
     m4.scale(world, world, v3.scale(temp, one, lightScale));
 
-    // drawing the light source cube
     gl.useProgram(lsPrgInf.program);
     twgl.setUniforms(lsPrgInf, coords);
     twgl.setUniforms(lsPrgInf, light1);
@@ -210,7 +202,6 @@ async function main() {
       gl.bindVertexArray(vao);
       twgl.drawBufferInfo(gl, bufferInfo);
     }
-
     requestAnimationFrame(render);
   }
   requestAnimationFrame(render);
