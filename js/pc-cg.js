@@ -1,83 +1,95 @@
 "use strict";
 
 import * as cg from "./cg.js";
-import * as m4 from "./glmjs/mat4.js";
 import * as v3 from "./glmjs/vec3.js";
+import * as v4 from "./glmjs/vec4.js";
+import * as m4 from "./glmjs/mat4.js";
 import * as twgl from "./twgl-full.module.js";
 
 async function main() {
+  const ambientLight = document.querySelector("#ambient");
+  const lightTheta = document.querySelector("#theta");
   const gl = document.querySelector("#canvitas").getContext("webgl2");
   if (!gl) return undefined !== console.log("WebGL 2.0 not supported");
+  let autorotate = true;
 
   twgl.setDefaults({ attribPrefix: "a_" });
 
-  const vertSrc = await fetch("glsl/pc-cg.vert").then((r) => r.text());
-  const fragSrc = await fetch("glsl/pc-cg.frag").then((r) => r.text());
-  const meshProgramInfo = twgl.createProgramInfo(gl, [vertSrc, fragSrc]);
-  const cubex = await cg.loadObj(
+  //loading models
+  let vertSrc = await cg.fetchText("glsl/pc-cg.vert");
+  let fragSrc = await cg.fetchText("glsl/pc-cg.frag");
+  const objPrgInf = twgl.createProgramInfo(gl, [vertSrc, fragSrc]);
+  const obj = await cg.loadObj(
     "models/crate/crate.obj",
     gl,
-    meshProgramInfo,
+    objPrgInf,
   );
-  const vertSrcLS = await fetch("glsl/ls.vert").then((r) => r.text());
-  const fragSrcLS = await fetch("glsl/ls.frag").then((r) => r.text());
-  const lsProgramInfo = twgl.createProgramInfo(gl, [vertSrcLS, fragSrcLS]);
-  const lightSource = await cg.loadObj(
+  vertSrc = await cg.fetchText("glsl/ls.vert");
+  fragSrc = await cg.fetchText("glsl/ls.frag");
+  const lsPrgInf = twgl.createProgramInfo(gl, [vertSrc, fragSrc]);
+  const lightbulb = await cg.loadObj(
     "models/cubito/cubito.obj",
     gl,
-    lsProgramInfo,
+    lsPrgInf,
   );
 
-  const cam = new cg.Cam([0, 0, 25], 5);
-  const rotationAxis = new Float32Array([1, 0.5, 0]);
+  //setup
+  const cam = new cg.Cam([0, 0, 6], 5);
 
-  let aspect = 1;
+  let aspect = 16.0 / 9.0;
   let deltaTime = 0;
   let lastTime = 0;
   let theta = 0;
 
-  const numObjs = 1; //10;
-  const positions = new Array(numObjs);
-  positions[0] = [0.0, 0.0, 0.0];
-  /*const delta = new Array(numObjs);
-  const deltaG = -9.81;
-  const rndb = (a, b) => Math.random() * (b - a) + a;
-  for (let i = 0; i < numObjs; i++) {
-    positions[i] = [
-      rndb(-13.0, 13.0),
-      rndb(6.0, 12.0),
-      rndb(-13.0, 13.0),
-    ];
-    delta[i] = [rndb(-1.1, 1.1), 0.0, rndb(-1.1, 1.1)];
-  }*/
+  const world = m4.create();
+  const projection = m4.create();
 
-  const globalUniforms = {
-    u_world: m4.create(),
-    u_projection: m4.create(),
+  // some preloaded arrays to optimize memory usage
+  const rotationAxis = new Float32Array([0, 1, 0]);
+  const temp = v3.create();
+  const one = v3.fromValues(1, 1, 1);
+  const initial_light_pos = v3.fromValues(3.0, 0, 0);
+  const origin = v4.create();
+  const light_position = v3.create();
+
+  const coords = {
+    u_world: world,
+    u_projection: projection,
     u_view: cam.viewM4,
   };
-
-  const crateLightUniforms = {
-    u_ambientLight: new Float32Array([1.0, 1.0, 1.0]),
-    u_lightPosition: new Float32Array([0.0, 0.0, 0.0]),
+  const light0 = {
+    "u_light.ambient": v3.create(0),
+    "u_light.cutOff": Math.cos(Math.PI / 15.0),
+    "u_light.outerCutOff": Math.cos(Math.PI / 12),
+    "u_light.direction": cam.lookAt,
+    "u_light.position": cam.pos,
+    "u_light.constant": 1.0,
+    "u_light.linear": 0.09,
+    "u_light.quadratic": 0.032,
     u_viewPosition: cam.pos,
   };
-  const lsUniforms = {
+  const light1 = {
     u_lightColor: v3.fromValues(1, 1, 1),
   };
-  const lightRotAxis = new Float32Array([0.0, 0.0, 0.0]);
-  const lightRotSource = new Float32Array([5.0, 0.5, 5.0]);
-
-  const lsScale = new Float32Array([0.1, 0.1, 0.1]);
+  // multiple objects positions
+	const numObjs = 100;
+  const positions = new Array(numObjs);
+	const rndb = (a, b) => Math.random() * (b - a) + a;
+	for (let i = 0; i < numObjs; ++i) {
+		positions[i] = [rndb(-13.0, 13.0), rndb(-12.0, 12.0), rndb(-14.0, 14.0)];
+	}
 
   gl.enable(gl.DEPTH_TEST);
   gl.enable(gl.CULL_FACE);
 
+  // Render awesome
   function render(elapsedTime) {
+    // handling time in seconds maybe
     elapsedTime *= 1e-3;
     deltaTime = elapsedTime - lastTime;
     lastTime = elapsedTime;
 
+    // resizing stuff and general preparation
     if (twgl.resizeCanvasToDisplaySize(gl.canvas)) {
       gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
       aspect = gl.canvas.width / gl.canvas.height;
@@ -85,72 +97,48 @@ async function main() {
     gl.clearColor(0.1, 0.1, 0.1, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    theta = elapsedTime * Math.PI * 2 / 16;
+    // some logic to move the light around
+    if (autorotate) theta += deltaTime;
+    if (theta > Math.PI * 2) theta -= Math.PI * 2;
+    m4.identity(world);
+    m4.rotate(world, world, theta, rotationAxis);
+    m4.translate(world, world, initial_light_pos);
+    v3.transformMat4(light_position, origin, world);
 
-    m4.identity(globalUniforms.u_projection);
-    m4.perspective(globalUniforms.u_projection, cam.zoom, aspect, 0.1, 100);
+    // coordinate system adjustments
+    m4.identity(projection);
+    m4.perspective(projection, cam.zoom, aspect, 0.1, 100);
 
-    gl.useProgram(lsProgramInfo.program);
-    m4.identity(globalUniforms.u_world);
-    m4.translate(
-      globalUniforms.u_world,
-      globalUniforms.u_world,
-      crateLightUniforms.u_lightPosition,
-    );
-    m4.scale(globalUniforms.u_world, globalUniforms.u_world, lsScale);
-    twgl.setUniforms(lsProgramInfo, globalUniforms);
-    twgl.setUniforms(lsProgramInfo, lsUniforms);
+    // drawing object 1
+    gl.useProgram(objPrgInf.program);
+    twgl.setUniforms(objPrgInf, light0);
 
-    for (const { bufferInfo, vao, material } of lightSource) {
-      gl.bindVertexArray(vao);
-      twgl.setUniforms(lsProgramInfo, {}, material);
-      twgl.drawBufferInfo(gl, bufferInfo);
-    }
-
-    gl.useProgram(meshProgramInfo.program);
-
-    v3.rotateY(
-      crateLightUniforms.u_lightPosition,
-      lightRotSource,
-      lightRotAxis,
-      -theta,
-    );
-
-    for (let i = 0; i < numObjs; i++) {
-      m4.identity(globalUniforms.u_world);
-      m4.translate(
-        globalUniforms.u_world,
-        globalUniforms.u_world,
-        positions[i],
-      );
-      m4.rotate(
-        globalUniforms.u_world,
-        globalUniforms.u_world,
-        theta,
-        rotationAxis,
-      );
-      twgl.setUniforms(meshProgramInfo, globalUniforms);
-
-      twgl.setUniforms(meshProgramInfo, crateLightUniforms);
-
-      for (const { bufferInfo, vao, material } of cubex) {
+    for (const pos of positions) {
+      m4.identity(world);
+      m4.scale(world, world, v3.scale(temp, one, 1));
+      m4.translate(world, world, pos);
+      m4.rotate(world, world, theta, rotationAxis);
+      twgl.setUniforms(objPrgInf, coords);
+      for (const { bufferInfo, vao, material } of obj) {
         gl.bindVertexArray(vao);
-        twgl.setUniforms(meshProgramInfo, {}, material);
+        twgl.setUniforms(objPrgInf, {}, material);
         twgl.drawBufferInfo(gl, bufferInfo);
       }
-      // Update position
-      /*for (let j = 0; j < 3; j++) {
-        positions[i][j] += delta[i][j] * deltaTime;
-        if (positions[i][j] > 13.0) {
-          positions[i][j] = 13.0;
-          delta[i][j] = -delta[i][j];
-          if (j == 1) delta[i][j] = 0.0;
-        } else if (positions[i][j] < -13.0) {
-          positions[i][j] = -13.0;
-          delta[i][j] = -delta[i][j];
-        }
-      }
-      delta[i][1] += deltaG * deltaTime;*/
+		}
+
+    // logic to move the visual representation of the light source
+    m4.identity(world);
+    m4.translate(world, world, light_position);
+    m4.scale(world, world, v3.scale(temp, one, 0.025));
+
+    // drawing the light source cube
+    gl.useProgram(lsPrgInf.program);
+    twgl.setUniforms(lsPrgInf, coords);
+    twgl.setUniforms(lsPrgInf, light1);
+
+    for (const { bufferInfo, vao } of lightbulb) {
+      gl.bindVertexArray(vao);
+      twgl.drawBufferInfo(gl, bufferInfo);
     }
 
     requestAnimationFrame(render);
@@ -162,11 +150,23 @@ async function main() {
     else if (e.key === "a") cam.processKeyboard(cg.LEFT, deltaTime);
     else if (e.key === "s") cam.processKeyboard(cg.BACKWARD, deltaTime);
     else if (e.key === "d") cam.processKeyboard(cg.RIGHT, deltaTime);
+    else if (e.key === "r") autorotate = !autorotate;
   });
-  document.addEventListener("mousemove", (e) => cam.movePov(e.x, e.y));
-  document.addEventListener("mousedown", (e) => cam.startMove(e.x, e.y));
-  document.addEventListener("mouseup", () => cam.stopMove());
-  document.addEventListener("wheel", (e) => cam.processScroll(e.deltaY));
+  canvitas.addEventListener("mousemove", (e) => cam.movePov(e.x, e.y));
+  canvitas.addEventListener("mousedown", (e) => cam.startMove(e.x, e.y));
+  canvitas.addEventListener("mouseup", () => cam.stopMove());
+  canvitas.addEventListener("wheel", (e) => cam.processScroll(e.deltaY));
+  ambientLight.addEventListener("change", () => {
+    const value = ambientLight.value;
+    light0["u_light.ambient"][0] = value / 100.0;
+    light0["u_light.ambient"][1] = value / 100.0;
+    light0["u_light.ambient"][2] = value / 100.0;
+  });
+  lightTheta.addEventListener("change", () => {
+    const value = lightTheta.value;
+    theta = value * Math.PI / 180.0;
+  });
 }
+
 
 main();

@@ -1,12 +1,46 @@
 <!DOCTYPE html>
 <html lang="en-US">
+	<style>
+		#inputs{
+			position: relative;
+		}
+		#inputs label{
+			position: absolute;
+			border: none;
+			background: none;
+			color: #ffe;
+		}
+		#label1{
+			top: 0;
+			left: 0;
+		}
+		#label2{
+			top: 50px;
+			left: 0;
+		}
+
+		input{
+			display: block;
+			width: 250px;
+		}
+	</style>
 	<head>
 		<meta charset="UTF-8">
 		<title>Hello World</title>
 		<link rel="stylesheet" href="css/style.css">
 	</head>
 	<body>
-		<canvas id="canvitas"></canvas>
+		<div id="inputs">
+			<canvas id="canvitas"></canvas>
+			<label id="label1">
+				<em>Ambient light</em>
+				<input type="range" id="ambient" value="10" min="0" max="100">
+			</label>
+			<label id = "label2">
+				<em>Theta</em>
+				<input type="range" id="theta" value="0" min="0" max="360">
+			</label>
+		</div>
 		<script type="module" src="/js/pc-cg.js"></script>
 	</body>
 </html>
