@@ -6,9 +6,9 @@ import * as v4 from "./glmjs/vec4.js";
 import * as m4 from "./glmjs/mat4.js";
 import * as twgl from "./twgl-full.module.js";
 
+let lightScale = 0.045;
 async function main() {
   const ambientLight = document.querySelector("#ambient");
-  const lightTheta = document.querySelector("#theta");
 
   const rambient = document.querySelector("#rambient");
   const gambient = document.querySelector("#gambient");
@@ -22,7 +22,10 @@ async function main() {
   const gflash = document.querySelector("#gflash");
   const bflash = document.querySelector("#bflash");
 
-  const lintensity = document.querySelector("#lintensity");
+  const intlamp = document.querySelector("#intlamp");
+  const rlamp = document.querySelector("#rlamp");
+  const glamp = document.querySelector("#glamp");
+  const blamp = document.querySelector("#blamp");
 
 
   const gl = document.querySelector("#canvitas").getContext("webgl2");
@@ -40,6 +43,12 @@ async function main() {
     gl,
     objPrgInf,
   );
+  const mugObj = await cg.loadObj(
+    "models/mug/mug.obj",
+    gl,
+    objPrgInf,
+  );
+
   vertSrc = await cg.fetchText("glsl/ls.vert");
   fragSrc = await cg.fetchText("glsl/ls.frag");
   const lsPrgInf = twgl.createProgramInfo(gl, [vertSrc, fragSrc]);
@@ -50,7 +59,7 @@ async function main() {
   );
 
   //setup
-  const cam = new cg.Cam([0, 0, 6], 5);
+  const cam = new cg.Cam([0, 0, 20], 5);
 
   let aspect = 16.0 / 9.0;
   let deltaTime = 0;
@@ -64,7 +73,7 @@ async function main() {
   const rotationAxis = new Float32Array([0, 1, 0]);
   const temp = v3.create();
   const one = v3.fromValues(1, 1, 1);
-  const initial_light_pos = v3.fromValues(3.0, 0, 0);
+  const initial_light_pos = v3.fromValues(10.0, 0.0, 10.0);
   const origin = v4.create();
   const light_position = v3.create();
 
@@ -77,11 +86,10 @@ async function main() {
 
     u_ambientIntensity: 0.05,
     u_ambientColor: v4.fromValues(1, 1, 1, 1),
-    u_lintensity: 1.0,
     u_viewPosition: cam.pos,
 
     //dirlight
-    "u_dirLight.direction": v3.fromValues(-1, 1, -1),
+    "u_dirLight.direction": v3.fromValues(1, -1, -1),
     "u_dirLight.diffuse": 1.0,
     "u_dirLight.specular": 1.0,
     "u_dirLight.color": v4.fromValues(1, 1, 1, 1),
@@ -89,6 +97,7 @@ async function main() {
     //spotlight
     "u_spotLight.diffuse": 1.0,
     "u_spotLight.specular": 1.0,
+    "u_spotLight.intensity": 2.5,
     "u_spotLight.color": v4.fromValues(1, 1, 1, 1),
 
     "u_spotLight.cutOff": Math.cos(Math.PI / 15.0),
@@ -102,26 +111,33 @@ async function main() {
     //lamplight
     "u_lampLight.diffuse": 1.0,
     "u_lampLight.specular": 1.0,
+    "u_lampLight.intensity": 2.5,
     "u_lampLight.color": v4.fromValues(1, 0, 0, 1),
 
     "u_lampLight.cutOff": Math.cos(Math.PI / 15.0),
     "u_lampLight.outerCutOff": Math.cos(Math.PI / 12),
-    "u_lampLight.direction": v3.fromValues(0, 0, 1),
+    "u_lampLight.direction": v3.fromValues(0.5, -1, 0),
     "u_lampLight.position": light_position,
     "u_lampLight.constant": 1.0,
     "u_lampLight.linear": 0.09,
     "u_lampLight.quadratic": 0.032,
   };
   const light1 = {
-    u_lightColor: v3.fromValues(1, 1, 1),
+    u_lightColor: v3.fromValues(1, 0, 0),
   };
-  // multiple objects positions
-	const numObjs = 100;
-  const positions = new Array(numObjs);
+
+  const maxX = 10;
+  const maxZ = 10;
+  // acerca, altura, 
+  const mugPosition = v3.fromValues(24, -8, 20);
+  const positions = new Array(maxX * maxZ);
 	const rndb = (a, b) => Math.random() * (b - a) + a;
-	for (let i = 0; i < numObjs; ++i) {
-		positions[i] = [rndb(-13.0, 13.0), rndb(-12.0, 12.0), rndb(-14.0, 14.0)];
-	}
+  for(let i = 0; i < maxX; i++){
+    for(let j = 0; j < maxZ; j++){
+      positions[i*maxZ + j] = [i*2, -5, j*2];
+    }
+  }
+
 
   gl.enable(gl.DEPTH_TEST);
   gl.enable(gl.CULL_FACE);
@@ -141,28 +157,37 @@ async function main() {
     gl.clearColor(0.1, 0.1, 0.1, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    // some logic to move the light around
-    // if (autorotate) theta += deltaTime;
-    // if (theta > Math.PI * 2) theta -= Math.PI * 2;
-    // m4.identity(world);
-    // m4.rotate(world, world, theta, rotationAxis);
-    // m4.translate(world, world, initial_light_pos);
-    // v3.transformMat4(light_position, origin, world);
+    if (autorotate) theta += deltaTime;
+
+    // lamp light
+    m4.identity(world);
+    m4.translate(world, world, initial_light_pos);
+    v3.transformMat4(light_position, origin, world);
 
     // coordinate system adjustments
     m4.identity(projection);
     m4.perspective(projection, cam.zoom, aspect, 0.1, 100);
 
-    // drawing object 1
+    // drawing mug object | First specular object
     gl.useProgram(objPrgInf.program);
     twgl.setUniforms(objPrgInf, light0);
-    twgl.setUniforms(objPrgInf, light1);
+    m4.identity(world);
+    m4.scale(world, world, v3.scale(temp, one, 0.5));
+    m4.translate(world, world, mugPosition);
+    m4.rotate(world, world, theta, rotationAxis);
+    twgl.setUniforms(objPrgInf, coords);
+    for(const {bufferInfo, vao, material} of mugObj){
+      gl.bindVertexArray(vao);
+      twgl.setUniforms(objPrgInf,{}, material);
+      twgl.drawBufferInfo(gl, bufferInfo);
+    }
 
+    //drawing crates | Second specular objects
+    gl.useProgram(objPrgInf.program);
+    twgl.setUniforms(objPrgInf, light0);
     for (const pos of positions) {
       m4.identity(world);
-      m4.scale(world, world, v3.scale(temp, one, 1));
       m4.translate(world, world, pos);
-      m4.rotate(world, world, theta, rotationAxis);
       twgl.setUniforms(objPrgInf, coords);
       for (const { bufferInfo, vao, material } of obj) {
         gl.bindVertexArray(vao);
@@ -174,7 +199,7 @@ async function main() {
     // logic to move the visual representation of the light source
     m4.identity(world);
     m4.translate(world, world, light_position);
-    m4.scale(world, world, v3.scale(temp, one, 0.025));
+    m4.scale(world, world, v3.scale(temp, one, lightScale));
 
     // drawing the light source cube
     gl.useProgram(lsPrgInf.program);
@@ -195,6 +220,12 @@ async function main() {
     light0["u_ambientIntensity"] = value / 100.0;
   }
 
+  function updateLampIntensity(){
+    const value = intlamp.value;
+    light0["u_lampLight.intensity"] = value / 100.0;
+    lightScale = value * 0.00018;
+  }
+
   document.addEventListener("keydown", (e) => {
     /**/ if (e.key === "w") cam.processKeyboard(cg.FORWARD, deltaTime);
     else if (e.key === "a") cam.processKeyboard(cg.LEFT, deltaTime);
@@ -207,10 +238,7 @@ async function main() {
   canvitas.addEventListener("mouseup", () => cam.stopMove());
   canvitas.addEventListener("wheel", (e) => cam.processScroll(e.deltaY));
   ambientLight.addEventListener("change", () => {updateAmbientLight();});
-  lightTheta.addEventListener("change", () => {
-    const value = lightTheta.value;
-    theta = value * Math.PI / 180.0;
-  });
+  intlamp.addEventListener("change", () => {updateLampIntensity();});
 
   rambient.addEventListener("change", () => {light0["u_ambientColor"][0] = rambient.value / 100.0;});
   gambient.addEventListener("change", () => {light0["u_ambientColor"][1] = gambient.value / 100.0;});
@@ -224,7 +252,18 @@ async function main() {
   gflash.addEventListener("change", () => {light0["u_spotLight.color"][1] = gflash.value / 100.0;});
   bflash.addEventListener("change", () => {light0["u_spotLight.color"][2] = bflash.value / 100.0;});
 
-  lintensity.addEventListener("change", () => {light0["u_lintensity"] = lintensity.value / 100.0;});
+  rlamp.addEventListener("change", () => {
+    light0["u_lampLight.color"][0] = rlamp.value / 100.0;
+    light1["u_lightColor"][0] = rlamp.value / 100.0;
+  });
+  glamp.addEventListener("change", () => {
+    light0["u_lampLight.color"][1] = glamp.value / 100.0;
+    light1["u_lightColor"][1] = glamp.value / 100.0;
+  });
+  blamp.addEventListener("change", () => {
+    light0["u_lampLight.color"][2] = blamp.value / 100.0;
+    light1["u_lightColor"][2] = blamp.value / 100.0;
+  });
 }
 
 

@@ -24,6 +24,7 @@ struct SpotLight {
 
 	float diffuse;
 	float specular;
+	float intensity;
 	vec4 color;
 
 	float constant;
@@ -83,10 +84,9 @@ vec3 calcSpotLight(SpotLight light, vec3 normal, vec4 mapColor, vec4 mapSpec, ve
 	float epsilon = light.cutOff - light.outerCutOff;
 	float intensity = clamp((theta - light.outerCutOff) / epsilon, 0.0, 1.0);
 	diffuse *= attenuation * intensity;
-	// diffuse *= attenuation * intensity;
 	specular *= attenuation * intensity;
 
-	return diffuse + specular;
+	return (diffuse + specular)*light.intensity;
 }
 
 
