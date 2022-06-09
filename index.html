@@ -15,8 +15,11 @@
 			left: 0;
 		}
 		input{
-			display: block;
-			width: 250px;
+			width: 10%;
+		}
+		/* div in labels */
+		div label{
+			display:inline-block;
 		}
 	</style>
 	<head>
@@ -28,12 +31,26 @@
 		<div id="inputs">
 			<canvas id="canvitas"></canvas>
 			<label id="label1">
-				<em>Ambient light</em>
-				<input type="range" id="ambient" value="100" min="0" max="100">
-				<em>RGB</em>
-				<input type="range" id="rcolor" value="100" min="0" max="100">
-				<input type="range" id="gcolor" value="100" min="0" max="100">
-				<input type="range" id="bcolor" value="100" min="0" max="100">
+				<div>
+					<em>Ambient Intensity</em>
+					<input type="range" id="ambient" value="5" min="0" max="100">
+					<em>Ambient RGB</em>
+					<input type="range" id="rambient" value="100" min="0" max="100">
+					<input type="range" id="gambient" value="100" min="0" max="100">
+					<input type="range" id="bambient" value="100" min="0" max="100">
+				</div>
+				<div>
+					<em>Diffuse RGB</em>
+					<input type="range" id="rdiff" value="100" min="0" max="100">
+					<input type="range" id="gdiff" value="100" min="0" max="100">
+					<input type="range" id="bdiff" value="100" min="0" max="100">
+				</div>
+				<div>
+					<em>Flashlight RGB</em>
+					<input type="range" id="rflash" value="100" min="0" max="100">
+					<input type="range" id="gflash" value="100" min="0" max="100">
+					<input type="range" id="bflash" value="100" min="0" max="100">
+				</div>
 				<em>Ligth Intensity</em>
 				<input type="range" id="lintensity" value="100" min="0" max="1000">
 				<em>Theta2</em>

@@ -9,10 +9,22 @@ import * as twgl from "./twgl-full.module.js";
 async function main() {
   const ambientLight = document.querySelector("#ambient");
   const lightTheta = document.querySelector("#theta");
-  const rcolor = document.querySelector("#rcolor");
-  const gcolor = document.querySelector("#gcolor");
-  const bcolor = document.querySelector("#bcolor");
+
+  const rambient = document.querySelector("#rambient");
+  const gambient = document.querySelector("#gambient");
+  const bambient = document.querySelector("#bambient");
+
+  const rdiff = document.querySelector("#rdiff");
+  const gdiff = document.querySelector("#gdiff");
+  const bdiff = document.querySelector("#bdiff");
+
+  const rflash = document.querySelector("#rflash");
+  const gflash = document.querySelector("#gflash");
+  const bflash = document.querySelector("#bflash");
+
   const lintensity = document.querySelector("#lintensity");
+
+
   const gl = document.querySelector("#canvitas").getContext("webgl2");
   if (!gl) return undefined !== console.log("WebGL 2.0 not supported");
   let autorotate = true;
@@ -62,22 +74,47 @@ async function main() {
     u_view: cam.viewM4,
   };
   const light0 = {
-    "u_light.ambient": v3.create(0),
-    "u_light.cutOff": Math.cos(Math.PI / 15.0),
-    "u_light.outerCutOff": Math.cos(Math.PI / 12),
-    "u_light.direction": cam.lookAt,
-    "u_light.position": cam.pos,
-    "u_light.constant": 1.0,
-    "u_light.linear": 0.09,
-    "u_light.quadratic": 0.032,
-    u_lightColor: v4.fromValues(1, 1, 1, 1),
+
+    u_ambientIntensity: 0.05,
+    u_ambientColor: v4.fromValues(1, 1, 1, 1),
     u_lintensity: 1.0,
     u_viewPosition: cam.pos,
+
+    //dirlight
+    "u_dirLight.direction": v3.fromValues(-1, 1, -1),
+    "u_dirLight.diffuse": 1.0,
+    "u_dirLight.specular": 1.0,
+    "u_dirLight.color": v4.fromValues(1, 1, 1, 1),
+
+    //spotlight
+    "u_spotLight.diffuse": 1.0,
+    "u_spotLight.specular": 1.0,
+    "u_spotLight.color": v4.fromValues(1, 1, 1, 1),
+
+    "u_spotLight.cutOff": Math.cos(Math.PI / 15.0),
+    "u_spotLight.outerCutOff": Math.cos(Math.PI / 12),
+    "u_spotLight.direction": cam.lookAt,
+    "u_spotLight.position": cam.pos,
+    "u_spotLight.constant": 1.0,
+    "u_spotLight.linear": 0.09,
+    "u_spotLight.quadratic": 0.032,
+
+    //lamplight
+    "u_lampLight.diffuse": 1.0,
+    "u_lampLight.specular": 1.0,
+    "u_lampLight.color": v4.fromValues(1, 0, 0, 1),
+
+    "u_lampLight.cutOff": Math.cos(Math.PI / 15.0),
+    "u_lampLight.outerCutOff": Math.cos(Math.PI / 12),
+    "u_lampLight.direction": v3.fromValues(0, 0, 1),
+    "u_lampLight.position": light_position,
+    "u_lampLight.constant": 1.0,
+    "u_lampLight.linear": 0.09,
+    "u_lampLight.quadratic": 0.032,
   };
   const light1 = {
     u_lightColor: v3.fromValues(1, 1, 1),
   };
-  updateAmbientLight();
   // multiple objects positions
 	const numObjs = 100;
   const positions = new Array(numObjs);
@@ -105,12 +142,12 @@ async function main() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     // some logic to move the light around
-    if (autorotate) theta += deltaTime;
-    if (theta > Math.PI * 2) theta -= Math.PI * 2;
-    m4.identity(world);
-    m4.rotate(world, world, theta, rotationAxis);
-    m4.translate(world, world, initial_light_pos);
-    v3.transformMat4(light_position, origin, world);
+    // if (autorotate) theta += deltaTime;
+    // if (theta > Math.PI * 2) theta -= Math.PI * 2;
+    // m4.identity(world);
+    // m4.rotate(world, world, theta, rotationAxis);
+    // m4.translate(world, world, initial_light_pos);
+    // v3.transformMat4(light_position, origin, world);
 
     // coordinate system adjustments
     m4.identity(projection);
@@ -119,6 +156,7 @@ async function main() {
     // drawing object 1
     gl.useProgram(objPrgInf.program);
     twgl.setUniforms(objPrgInf, light0);
+    twgl.setUniforms(objPrgInf, light1);
 
     for (const pos of positions) {
       m4.identity(world);
@@ -154,9 +192,7 @@ async function main() {
 
   function updateAmbientLight(){
     const value = ambientLight.value;
-    light0["u_light.ambient"][0] = value / 100.0;
-    light0["u_light.ambient"][1] = value / 100.0;
-    light0["u_light.ambient"][2] = value / 100.0;
+    light0["u_ambientIntensity"] = value / 100.0;
   }
 
   document.addEventListener("keydown", (e) => {
@@ -175,9 +211,19 @@ async function main() {
     const value = lightTheta.value;
     theta = value * Math.PI / 180.0;
   });
-  rcolor.addEventListener("change", () => {light0["u_lightColor"][0] = rcolor.value / 100.0;});
-  gcolor.addEventListener("change", () => {light0["u_lightColor"][1] = gcolor.value / 100.0;});
-  bcolor.addEventListener("change", () => {light0["u_lightColor"][2] = bcolor.value / 100.0;});
+
+  rambient.addEventListener("change", () => {light0["u_ambientColor"][0] = rambient.value / 100.0;});
+  gambient.addEventListener("change", () => {light0["u_ambientColor"][1] = gambient.value / 100.0;});
+  bambient.addEventListener("change", () => {light0["u_ambientColor"][2] = bambient.value / 100.0;});
+
+  rdiff.addEventListener("change", () => {light0["u_dirLight.color"][0] = rdiff.value / 100.0;});
+  gdiff.addEventListener("change", () => {light0["u_dirLight.color"][1] = gdiff.value / 100.0;});
+  bdiff.addEventListener("change", () => {light0["u_dirLight.color"][2] = bdiff.value / 100.0;});
+
+  rflash.addEventListener("change", () => {light0["u_spotLight.color"][0] = rflash.value / 100.0;});
+  gflash.addEventListener("change", () => {light0["u_spotLight.color"][1] = gflash.value / 100.0;});
+  bflash.addEventListener("change", () => {light0["u_spotLight.color"][2] = bflash.value / 100.0;});
+
   lintensity.addEventListener("change", () => {light0["u_lintensity"] = lintensity.value / 100.0;});
 }
 

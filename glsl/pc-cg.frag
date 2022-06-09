@@ -8,12 +8,24 @@ in vec3 v_normal;
 
 out vec4 color;
 
-struct Light{
-	vec3 ambient;
+struct DirLight {
+	vec3 direction;
+
+	float diffuse;
+	float specular;
+	vec4 color;
+};
+
+struct SpotLight {
+	vec3 position;
+	vec3 direction;
 	float cutOff;
 	float outerCutOff;
-	vec3 direction;
-	vec3 position;
+
+	float diffuse;
+	float specular;
+	vec4 color;
+
 	float constant;
 	float linear;
 	float quadratic;
@@ -27,48 +39,73 @@ uniform vec3 emissive;
 uniform vec3 specular;
 uniform float shininess;
 uniform float opacity;
-uniform vec4 u_lightColor;
+
+uniform float u_ambientIntensity;
+uniform vec4 u_ambientColor;
+
+uniform vec4 u_diffuseColor;
 uniform float u_lintensity;
 
-uniform Light u_light;
+uniform DirLight u_dirLight;
+uniform SpotLight u_spotLight;
+uniform SpotLight u_lampLight;
 
-uniform vec3 u_viewPosition; // camera position
+uniform vec3 u_viewPosition;
+
+vec3 calcDirLight(DirLight light, vec3 normal, vec4 mapColor, vec4 mapSpec, vec3 viewDir) {
+	vec3 lightDir = normalize(-light.direction);
+
+	float diffuseFactor = max(dot(normal, lightDir), 0.0);
+	vec3 diffuse = light.diffuse * diffuseFactor * (mapColor.rgb * light.color.rgb);
+
+	vec3 reflectDir = reflect(-lightDir, normal);
+	float specularFactor = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
+	vec3 specular = specularFactor * light.specular * (mapSpec.rgb * light.color.rgb);
+
+	return diffuse + specular;
+}
+
+
+vec3 calcSpotLight(SpotLight light, vec3 normal, vec4 mapColor, vec4 mapSpec, vec3 viewDir) {
+	vec3 lightDir = normalize(light.position - v_position.xyz);
+
+	float diffuseFactor = max(dot(normal, lightDir), 0.0);
+	vec3 diffuse = light.diffuse * diffuseFactor * (mapColor.rgb * light.color.rgb);
+
+	vec3 reflectDir = reflect(-lightDir, normal);
+	float specularFactor = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
+	vec3 specular = light.specular * specularFactor * (mapSpec.rgb * light.color.rgb);
+
+	float distance = length(light.position - v_position.xyz);
+	float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
+
+	float theta = dot(lightDir, normalize(-light.direction));
+	float epsilon = light.cutOff - light.outerCutOff;
+	float intensity = clamp((theta - light.outerCutOff) / epsilon, 0.0, 1.0);
+	diffuse *= attenuation * intensity;
+	// diffuse *= attenuation * intensity;
+	specular *= attenuation * intensity;
+
+	return diffuse + specular;
+}
+
 
 void main() {
 	vec3 normal = normalize(v_normal);
 	vec4 mapColor = texture(diffuseMap, v_texcoord);
 	vec4 mapSpec = texture(specularMap, v_texcoord);
-	vec3 lightDir = normalize(u_light.position - v_position);
+	vec3 viewDir = normalize(u_viewPosition - v_position.xyz);
 
-	// ambient light
-	vec3 ambientLight = u_light.ambient * ambient * mapColor.rgb;
+	//Ambient light
+	vec3 result = u_ambientIntensity * (mapColor.rgb * u_ambientColor.rgb);
 
-	float theta = dot(lightDir, normalize(-u_light.direction));
-	float epsilon = u_light.cutOff - u_light.outerCutOff;
-	float intensity = clamp((theta - u_light.outerCutOff) / epsilon, 0.0, 1.0);
+	//Dirlight
+	result += calcDirLight(u_dirLight, normal, mapColor, mapSpec, viewDir);
 
-	// diffuse light
-	float diffuseFactor = max(dot(normal, lightDir), 0.0);
-	vec3 diffuseLight = diffuseFactor * diffuse * mapColor.rgb;
+	//Spotlights
+	result += calcSpotLight(u_spotLight, normal, mapColor, mapSpec, viewDir);
+	result += calcSpotLight(u_lampLight, normal, mapColor, mapSpec, viewDir);
 
-	// specular
-	vec3 viewDir = normalize(u_viewPosition - v_position);
-	vec3 reflectDir = reflect(-lightDir, normal);
-	float specularFactor = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
-	vec3 specularLight = specularFactor * specular * mapSpec.rgb;
-
-	diffuseLight = diffuseLight * intensity;
-	specularLight = specularLight * intensity;
-
-	float distance = length(u_light.position - v_position);
-	float attenuation = 1.0 / (u_light.constant + u_light.linear * distance + u_light.quadratic * distance * distance);
-
-	ambientLight = ambientLight * attenuation;
-	diffuseLight = diffuseLight * attenuation;
-	specularLight = specularLight * attenuation;
-
-	vec3 result = (ambientLight + diffuseLight + specularLight) * u_lintensity;
-	color = vec4(result, opacity) * u_lightColor;
-
-	//color = vec4(result, opacity) * (float strength);
+	// color = vec4(result * ambient * diffuse, opacity);
+	color = vec4(result * ambient * diffuse, opacity);
 }
