@@ -14,11 +14,6 @@
 			top: 0;
 			left: 0;
 		}
-		#label2{
-			top: 50px;
-			left: 0;
-		}
-
 		input{
 			display: block;
 			width: 250px;
@@ -34,10 +29,14 @@
 			<canvas id="canvitas"></canvas>
 			<label id="label1">
 				<em>Ambient light</em>
-				<input type="range" id="ambient" value="10" min="0" max="100">
-			</label>
-			<label id = "label2">
-				<em>Theta</em>
+				<input type="range" id="ambient" value="100" min="0" max="100">
+				<em>RGB</em>
+				<input type="range" id="rcolor" value="100" min="0" max="100">
+				<input type="range" id="gcolor" value="100" min="0" max="100">
+				<input type="range" id="bcolor" value="100" min="0" max="100">
+				<em>Ligth Intensity</em>
+				<input type="range" id="lintensity" value="100" min="0" max="1000">
+				<em>Theta2</em>
 				<input type="range" id="theta" value="0" min="0" max="360">
 			</label>
 		</div>

@@ -9,6 +9,10 @@ import * as twgl from "./twgl-full.module.js";
 async function main() {
   const ambientLight = document.querySelector("#ambient");
   const lightTheta = document.querySelector("#theta");
+  const rcolor = document.querySelector("#rcolor");
+  const gcolor = document.querySelector("#gcolor");
+  const bcolor = document.querySelector("#bcolor");
+  const lintensity = document.querySelector("#lintensity");
   const gl = document.querySelector("#canvitas").getContext("webgl2");
   if (!gl) return undefined !== console.log("WebGL 2.0 not supported");
   let autorotate = true;
@@ -66,11 +70,14 @@ async function main() {
     "u_light.constant": 1.0,
     "u_light.linear": 0.09,
     "u_light.quadratic": 0.032,
+    u_lightColor: v4.fromValues(1, 1, 1, 1),
+    u_lintensity: 1.0,
     u_viewPosition: cam.pos,
   };
   const light1 = {
     u_lightColor: v3.fromValues(1, 1, 1),
   };
+  updateAmbientLight();
   // multiple objects positions
 	const numObjs = 100;
   const positions = new Array(numObjs);
@@ -145,6 +152,13 @@ async function main() {
   }
   requestAnimationFrame(render);
 
+  function updateAmbientLight(){
+    const value = ambientLight.value;
+    light0["u_light.ambient"][0] = value / 100.0;
+    light0["u_light.ambient"][1] = value / 100.0;
+    light0["u_light.ambient"][2] = value / 100.0;
+  }
+
   document.addEventListener("keydown", (e) => {
     /**/ if (e.key === "w") cam.processKeyboard(cg.FORWARD, deltaTime);
     else if (e.key === "a") cam.processKeyboard(cg.LEFT, deltaTime);
@@ -156,16 +170,15 @@ async function main() {
   canvitas.addEventListener("mousedown", (e) => cam.startMove(e.x, e.y));
   canvitas.addEventListener("mouseup", () => cam.stopMove());
   canvitas.addEventListener("wheel", (e) => cam.processScroll(e.deltaY));
-  ambientLight.addEventListener("change", () => {
-    const value = ambientLight.value;
-    light0["u_light.ambient"][0] = value / 100.0;
-    light0["u_light.ambient"][1] = value / 100.0;
-    light0["u_light.ambient"][2] = value / 100.0;
-  });
+  ambientLight.addEventListener("change", () => {updateAmbientLight();});
   lightTheta.addEventListener("change", () => {
     const value = lightTheta.value;
     theta = value * Math.PI / 180.0;
   });
+  rcolor.addEventListener("change", () => {light0["u_lightColor"][0] = rcolor.value / 100.0;});
+  gcolor.addEventListener("change", () => {light0["u_lightColor"][1] = gcolor.value / 100.0;});
+  bcolor.addEventListener("change", () => {light0["u_lightColor"][2] = bcolor.value / 100.0;});
+  lintensity.addEventListener("change", () => {light0["u_lintensity"] = lintensity.value / 100.0;});
 }
 
 

@@ -27,6 +27,8 @@ uniform vec3 emissive;
 uniform vec3 specular;
 uniform float shininess;
 uniform float opacity;
+uniform vec4 u_lightColor;
+uniform float u_lintensity;
 
 uniform Light u_light;
 
@@ -65,9 +67,8 @@ void main() {
 	diffuseLight = diffuseLight * attenuation;
 	specularLight = specularLight * attenuation;
 
-	vec3 result = ambientLight + diffuseLight + specularLight;
-	color = vec4(result, opacity);
+	vec3 result = (ambientLight + diffuseLight + specularLight) * u_lintensity;
+	color = vec4(result, opacity) * u_lightColor;
 
-
-
+	//color = vec4(result, opacity) * (float strength);
 }
